@@ -165,7 +165,7 @@
   <strong>random seed：</strong>100<br>
   <strong>text prompts：</strong> 'a high quality photo', 'a photo of a dog', 'a rocket ship'<br><br>
 
-  <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px;">
+  <div style="display: flex; justify-content: center; gap: 18px; margin-bottom: 15px;">
     <figure style="text-align: center; margin: 0;">
       <img src="0120.png" style="width: 200px;">
       <figcaption>20 steps</figcaption>
@@ -180,7 +180,7 @@
     </figure>
   </div>
 
-  <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px;">
+  <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 15px;">
     <figure style="text-align: center; margin: 0;">
       <img src="0160.png" style="width: 200px;">
       <figcaption>60 steps</figcaption>
@@ -203,7 +203,7 @@
         <div class="section" id="partA-1-1">
           <h3>1.1 Forward Process</h3>
           <p>
-  <div style="font-weight: bold; color: white; font-size: 18px; margin-bottom: 10px;">
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
     noisy_im = forward(im, t) function
   </div>
 
@@ -213,7 +213,7 @@
   </div>
 
   <!-- 四张图一行 -->
-  <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px;">
+  <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 15px;">
 
     <figure style="text-align: center; margin: 0;">
       <img src="test.png" style="width: 200px;">
@@ -242,7 +242,48 @@
 
         <div class="section" id="partA-1-2">
           <h3>1.2 Classical Denoising</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+  <!-- 第一行：Noisy images -->
+  <div style="display: flex; justify-content: center; gap: 12px; margin-bottom: 15px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.1250.png" style="width: 200px;">
+      <figcaption>Noisy Campanile at t=250</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.1500.png" style="width: 200px;">
+      <figcaption>Noisy Campanile at t=500</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.1750.png" style="width: 200px;">
+      <figcaption>Noisy Campanile at t=750</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- 第二行：Gaussian blur denoising -->
+  <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 15px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.2250.png" style="width: 200px;">
+      <figcaption>Gaussian Blur Denoising at t=250</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.2500.png" style="width: 200px;">
+      <figcaption>Gaussian Blur Denoising at t=500</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="1.2750.png" style="width: 200px;">
+      <figcaption>Gaussian Blur Denoising at t=750</figcaption>
+    </figure>
+
+  </div>
+</p>
+
         </div>
 
         <div class="section" id="partA-1-3">
