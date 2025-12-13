@@ -1097,7 +1097,180 @@ def inpaint(original_image, mask, prompt_embeds, uncond_prompt_embeds,
 
         <div class="section" id="partA-1-8">
           <h3>1.8 Visual Anagrams</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+  <!-- 文字说明 -->
+  <div style="margin-bottom: 16px;">
+    In this part, I implemented visual anagrams using diffusion models—images that change semantic meaning when flipped vertically.
+  </div>
+
+  <!-- 小标题 -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
+    visual_anagrams function
+  </div>
+
+  <!-- 代码块：白底黑字 -->
+  <div style="display: flex; justify-content: center; margin-bottom: 24px;">
+    <pre style="
+      background-color: #ffffff;
+      color: #000000;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 100%;
+    "><code class="language-python">
+def make_flip_illusion(prompt_embeds_1, prompt_embeds_2, uncond_prompt_embeds,
+                       timesteps, scale=7.0, display=True):
+    prompt_embeds_1 = prompt_embeds_1.to(device).half()
+    prompt_embeds_2 = prompt_embeds_2.to(device).half()
+    uncond_prompt_embeds = uncond_prompt_embeds.to(device).half()
+
+    i_start = 0
+    image = torch.randn(1, CHANNELS, 64, 64, device=device).half()
+
+    with torch.no_grad():
+        with autocast(device_type=image.device.type, dtype=torch.float16):
+            n_steps = len(timesteps)
+
+            for i in range(i_start, n_steps - 1):
+                t = _get_timestep_int(timesteps, i)
+                prev_t = _get_timestep_int(timesteps, i + 1)
+                t_tensor_unet = torch.tensor([t], device=device, dtype=torch.float32)
+
+                if isinstance(alphas_cumprod, torch.Tensor):
+                    alpha_bar_t = alphas_cumprod[t].to(device).float()
+                    alpha_bar_prev = alphas_cumprod[prev_t].to(device).float()
+                else:
+                    alpha_bar_t = torch.tensor(float(alphas_cumprod[t]), device=device).float()
+                    alpha_bar_prev = torch.tensor(float(alphas_cumprod[prev_t]), device=device).float()
+
+                if prev_t > 0:
+                    alpha_t = alpha_bar_t / alpha_bar_prev
+                else:
+                    alpha_t = alpha_bar_t
+                beta_t = 1 - alpha_t
+
+                model_output_1 = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds_1,
+                    return_dict=False
+                )[0]
+
+                uncond_output_1 = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                C = image.shape[1]
+                if model_output_1.shape[1] == 2 * C:
+                    noise_cond_1, var_cond_1 = torch.split(model_output_1, C, dim=1)
+                else:
+                    noise_cond_1 = model_output_1
+                    var_cond_1 = None
+
+                if uncond_output_1.shape[1] == 2 * C:
+                    noise_uncond_1, _ = torch.split(uncond_output_1, C, dim=1)
+                else:
+                    noise_uncond_1 = uncond_output_1
+
+                epsilon_1 = noise_uncond_1 + float(scale) * (noise_cond_1 - noise_uncond_1)
+
+                x_t_flipped = flip(image)
+                model_output_2 = stage_1.unet(
+                    x_t_flipped,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds_2,
+                    return_dict=False
+                )[0]
+
+                uncond_output_2 = stage_1.unet(
+                    x_t_flipped,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                if model_output_2.shape[1] == 2 * C:
+                    noise_cond_2, var_cond_2 = torch.split(model_output_2, C, dim=1)
+                else:
+                    noise_cond_2 = model_output_2
+                    var_cond_2 = None
+
+                if uncond_output_2.shape[1] == 2 * C:
+                    noise_uncond_2, _ = torch.split(uncond_output_2, C, dim=1)
+                else:
+                    noise_uncond_2 = uncond_output_2
+
+                epsilon_2_flipped = noise_uncond_2 + float(scale) * (noise_cond_2 - noise_uncond_2)
+                epsilon_2 = flip(epsilon_2_flipped)
+
+                noise_est = (epsilon_1 + epsilon_2) / 2.0
+                predicted_variance = None
+                if var_cond_1 is not None and var_cond_2 is not None:
+                    var_2 = flip(var_cond_2)
+                    predicted_variance = (var_cond_1 + var_2) / 2.0
+
+                sqrt_alpha_bar_t = torch.sqrt(alpha_bar_t)
+                sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - alpha_bar_t)
+
+                x0_hat = (image - sqrt_one_minus_alpha_bar_t * noise_est) / sqrt_alpha_bar_t
+                x0_hat = threshold_x0(
+                    x0_hat,
+                    clip_sample=stage_1.scheduler.config.clip_sample,
+                    thresholding=stage_1.scheduler.config.thresholding,
+                    dynamic_thresholding_ratio=stage_1.scheduler.config.dynamic_thresholding_ratio,
+                    sample_max_value=stage_1.scheduler.config.sample_max_value
+                )
+
+                sqrt_alpha_bar_prev = torch.sqrt(alpha_bar_prev)
+                sqrt_alpha_t = torch.sqrt(alpha_t)
+
+                coeff_x0 = sqrt_alpha_bar_prev * beta_t / (1 - alpha_bar_t)
+                coeff_xt = sqrt_alpha_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
+
+                pred_prev_mean = coeff_x0 * x0_hat + coeff_xt * image
+
+                if predicted_variance is not None and prev_t > 0:
+                    image = add_variance_safe(predicted_variance, prev_t, pred_prev_mean)
+                else:
+                    image = pred_prev_mean
+
+    return image.detach().cpu()
+</code></pre>
+  </div>
+
+  <!-- 第一行图片 -->
+  <div style="display: flex; justify-content: center; gap: 32px; margin-bottom: 28px;">
+    <figure style="text-align: center; margin: 0;">
+      <img src="181up.png" style="width: 250px;">
+      <figcaption>'a lithograph of waterfalls'</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="181down.png" style="width: 250px;">
+      <figcaption>'an oil painting of an old man'</figcaption>
+    </figure>
+  </div>
+
+  <!-- 第二行图片 -->
+  <div style="display: flex; justify-content: center; gap: 32px; margin-bottom: 16px;">
+    <figure style="text-align: center; margin: 0;">
+      <img src="182up.png" style="width: 250px;">
+      <figcaption>'a photo of a dog'</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="182down.png" style="width: 250px;">
+      <figcaption>'an oil painting of a snowy mountain village'</figcaption>
+    </figure>
+  </div>
+</p>
+
         </div>
 
         <div class="section" id="partA-1-9">
