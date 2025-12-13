@@ -1461,7 +1461,25 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
 
         <div class="section" id="partB-1-1">
           <h3>1.1 Implementing the UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <div class="section" id="part1-1">
+  <h2>Part 1.1: Single-Step Denoising UNet</h2>
+
+  <p>
+    In this part, the goal is to build a simple single-step denoising network.
+    Given a noisy image <em>z</em>, the denoiser <em>D<sub>&theta;</sub>(z)</em>
+    directly predicts the corresponding clean image <em>x</em>.
+    The model is trained using an L2 reconstruction loss between the prediction
+    and the ground-truth clean image.
+  </p>
+
+  <p>
+    To implement this denoiser, we construct a lightweight UNet architecture.
+    The network consists of a downsampling path that captures coarse spatial
+    structure, an upsampling path that reconstructs fine details, and skip
+    connections that preserve high-frequency information.
+  </p>
+</div>
+
         </div>
 
         <div class="section" id="partB-1-2">
@@ -1469,9 +1487,27 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
 <p>
   <!-- 文字说明 -->
   <div style="margin-bottom: 16px;">
-    I used the UNet implemented in Part 1.1 to train a simple one-step denoiser.<br><br>
-    The goal is to train a model that maps a noisy image (<em>z</em>) back to its clean version (<em>x</em>).<br><br>
-    The optimization objective is the same L2 reconstruction loss:
+      <p>
+    In this section, I use the UNet implemented in Part 1.1 to train a simple
+    single-step denoiser. The objective is to learn a mapping
+    <em>D<sub>&theta;</sub>(z) &rarr; x</em>, where <em>z</em> is a noisy image
+    and <em>x</em> is the corresponding clean image.
+    The model is trained using an L2 reconstruction loss.
+  </p>
+
+  <p>
+    To generate training pairs (<em>z, x</em>), clean MNIST images are corrupted
+    using a Gaussian noising process, where larger noise levels produce
+    progressively noisier images.
+  </p>
+
+  <p>
+    I visualize the effect of this noising process on a normalized MNIST digit
+    across different noise levels. As expected, the image becomes increasingly
+    corrupted as the noise strength increases.
+  </p>
+
+  
   </div>
 
   <!-- 长图：Loss formulation -->
@@ -1484,8 +1520,20 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
             <p>
   <!-- 文字说明 -->
   <div style="margin-bottom: 16px;">
-    In this section, I trained the UNet denoiser from Part 1.1 to map noisy MNIST images back to their clean versions.<br><br>
-    The training objective is:
+    <h3>Training Setup</h3>
+
+  <p>
+    The denoiser is trained on the MNIST training set using a batch size of 256
+    for 5 epochs. Noise is applied on-the-fly when each batch is fetched from
+    the dataloader, ensuring that the model observes different noisy versions
+    of the same image across epochs.
+  </p>
+
+  <p>
+    The UNet uses a hidden dimension of <em>D = 128</em> and is optimized with
+    the Adam optimizer at a learning rate of <em>1e-4</em>.
+    Denoising results on the test set are visualized after the 1st and 5th epochs.
+  </p>
   </div>
 
   <!-- 目标函数图 -->
@@ -1493,7 +1541,36 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
     <img src="1.21.png" style="width: 500px;">
   </div>
 
-              <!-- 输入 / 输出示意图 -->
+<!-- ================= After 1 Epochs ================= -->
+<h5 style="color: white; margin-top: 30px;">After 1 Epochs</h5>
+
+<div style="display: flex; justify-content: center; align-items: stretch; margin-top: 20px;">
+
+  <!-- 左侧文字说明 -->
+  <div style="
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-right: 16px;
+    font-weight: bold;
+    color: white;
+    height: 300px;
+  ">
+    <div style="align-self: flex-end;">input</div>
+    <div style="align-self: flex-end;">noisy</div>
+    <div style="align-self: flex-end;">output</div>
+  </div>
+
+  <!-- 图片 -->
+  <div>
+    <img src="1210.png" style="width: 800px;">
+  </div>
+
+</div>
+
+<!-- ================= After 5 Epochs ================= -->
+<h5 style="color: white; margin-top: 40px;">After 5 Epochs</h5>
+
 <div style="display: flex; justify-content: center; align-items: stretch; margin-top: 20px;">
 
   <!-- 左侧文字说明 -->
@@ -1517,6 +1594,7 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
   </div>
 
 </div>
+
 
 </p>
 
