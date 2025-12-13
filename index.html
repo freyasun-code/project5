@@ -591,7 +591,138 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
 
         <div class="section" id="partA-1-7">
           <h3>1.7 Image-to-Image Translation</h3>
+          <!-- 1.7 总体说明 -->
+<p>
+  I use classifier-free guidance (CFG) for all sampling.
+</p>
 
+<!-- 第一排：SDEdit on Campanile -->
+<div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 18px;">
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="171.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=1</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="172.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=3</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="173.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=5</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="174.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=7</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="175.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=10</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="176.png" style="width: 150px;">
+    <figcaption>SDEdit with i_start=20</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="test.png" style="width: 150px;">
+    <figcaption>Campanile</figcaption>
+  </figure>
+
+</div>
+
+<!-- 白色加粗小标题 -->
+<div style="font-weight: bold; color: white; font-size: 18px; margin-bottom: 12px;">
+  my own test images
+</div>
+
+<!-- 第二部分：自定义图片 第一排 -->
+<div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 14px;">
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1711.png" style="width: 150px;">
+    <figcaption>flower i_start=1</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1712.png" style="width: 150px;">
+    <figcaption>flower i_start=3</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1713.png" style="width: 150px;">
+    <figcaption>flower i_start=5</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1714.png" style="width: 150px;">
+    <figcaption>flower i_start=7</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1715.png" style="width: 150px;">
+    <figcaption>flower i_start=10</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1716.png" style="width: 150px;">
+    <figcaption>flower i_start=20</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="image1.JPG" style="width: 150px;">
+    <figcaption>original</figcaption>
+  </figure>
+
+</div>
+
+<!-- 第二部分：自定义图片 第二排 -->
+<div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1721.png" style="width: 150px;">
+    <figcaption>soup i_start=1</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1722.png" style="width: 150px;">
+    <figcaption>soup i_start=3</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1723.png" style="width: 150px;">
+    <figcaption>soup i_start=5</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1724.png" style="width: 150px;">
+    <figcaption>soup i_start=7</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1725.png" style="width: 150px;">
+    <figcaption>soup i_start=10</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="1726.png" style="width: 150px;">
+    <figcaption>soup i_start=20</figcaption>
+  </figure>
+
+  <figure style="text-align: center; margin: 0;">
+    <img src="image2.jpg" style="width: 150px;">
+    <figcaption>original</figcaption>
+  </figure>
+
+</div>
+
+  
+          
           <div class="section" id="partA-1-7-1">
             <h4>1.7.1 Editing Hand-Drawn and Web Images</h4>
             <p><!-- 内容留空 --></p>
