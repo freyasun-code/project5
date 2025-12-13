@@ -866,7 +866,196 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
 
           <div class="section" id="partA-1-7-2">
             <h4>1.7.2 Inpainting</h4>
-            <p><!-- 内容留空 --></p>
+            <p>
+  <!-- 文字说明 -->
+  <div style="margin-bottom: 16px;">
+    I extended the CFG-based diffusion pipeline to perform inpainting, following the RePaint idea.
+  </div>
+
+  <!-- 小标题：inpaint function -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
+    inpaint function
+  </div>
+
+  <!-- 代码块（白底黑字，居中） -->
+  <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+    <pre style="background: #ffffff; color: #000000; padding: 16px; border-radius: 6px; max-width: 100%; overflow-x: auto; text-align: left;">
+<code>
+def inpaint(original_image, mask, prompt_embeds, uncond_prompt_embeds,
+            timesteps, scale=7.5, display=True):
+    original_image = original_image.to(device)
+    mask = mask.to(device)
+    prompt_embeds = prompt_embeds.to(device).half()
+    uncond_prompt_embeds = uncond_prompt_embeds.to(device).half()
+
+    i_start = 0
+    image = torch.randn_like(original_image).to(device).half()
+
+    with torch.no_grad():
+        with autocast(device_type=image.device.type, dtype=torch.float16):
+            n_steps = len(timesteps)
+
+            for i in range(i_start, n_steps - 1):
+                t = _get_timestep_int(timesteps, i)
+                prev_t = _get_timestep_int(timesteps, i + 1)
+
+                t_tensor_unet = torch.tensor([t], device=device, dtype=torch.float32)
+
+                if isinstance(alphas_cumprod, torch.Tensor):
+                    alpha_bar_t = alphas_cumprod[t].to(device).float()
+                    alpha_bar_prev = alphas_cumprod[prev_t].to(device).float()
+                else:
+                    alpha_bar_t = torch.tensor(float(alphas_cumprod[t]), device=device).float()
+                    alpha_bar_prev = torch.tensor(float(alphas_cumprod[prev_t]), device=device).float()
+
+                if prev_t > 0:
+                    alpha_t = alpha_bar_t / alpha_bar_prev
+                else:
+                    alpha_t = alpha_bar_t
+                beta_t = 1 - alpha_t
+
+                cond_model_output = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                uncond_model_output = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                C = image.shape[1]
+                if cond_model_output.shape[1] == 2 * C:
+                    noise_est_cond, predicted_variance = torch.split(cond_model_output, C, dim=1)
+                else:
+                    noise_est_cond = cond_model_output
+                    predicted_variance = None
+
+                if uncond_model_output.shape[1] == 2 * C:
+                    noise_est_uncond, _ = torch.split(uncond_model_output, C, dim=1)
+                else:
+                    noise_est_uncond = uncond_model_output
+
+                noise_est = noise_est_uncond + float(scale) * (noise_est_cond - noise_est_uncond)
+
+                sqrt_alpha_bar_t = torch.sqrt(alpha_bar_t)
+                sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - alpha_bar_t)
+
+                x0_hat = (image - sqrt_one_minus_alpha_bar_t * noise_est) / sqrt_alpha_bar_t
+                x0_hat = threshold_x0(
+                    x0_hat,
+                    clip_sample=stage_1.scheduler.config.clip_sample,
+                    thresholding=stage_1.scheduler.config.thresholding,
+                    dynamic_thresholding_ratio=stage_1.scheduler.config.dynamic_thresholding_ratio,
+                    sample_max_value=stage_1.scheduler.config.sample_max_value
+                )
+
+                sqrt_alpha_bar_prev = torch.sqrt(alpha_bar_prev)
+                sqrt_alpha_t = torch.sqrt(alpha_t)
+
+                coeff_x0 = sqrt_alpha_bar_prev * beta_t / (1 - alpha_bar_t)
+                coeff_xt = sqrt_alpha_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
+
+                pred_prev_mean = coeff_x0 * x0_hat + coeff_xt * image
+
+                if predicted_variance is not None and prev_t > 0:
+                    image = add_variance_safe(predicted_variance, prev_t, pred_prev_mean)
+                else:
+                    image = pred_prev_mean
+
+                noisy_original = forward(original_image.float(), t).to(device).half()
+                image = mask * noisy_original + (1.0 - mask) * image
+
+    return image.detach().cpu()
+</code>
+    </pre>
+  </div>
+
+  <!-- 第一组 inpainting 示例 -->
+  <div style="display: flex; justify-content: center; gap: 14px; margin-bottom: 22px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="01_original.png" style="width: 150px;">
+      <figcaption>Original</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="02_mask.png" style="width: 150px;">
+      <figcaption>Mask</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="03_hole_to_fill.png" style="width: 150px;">
+      <figcaption>Hole to Fill</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="04_inpainted.png" style="width: 150px;">
+      <figcaption>Inpainted Result</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- 小标题：Inpainting on my own images -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
+    Inpainting on my own images
+  </div>
+
+  <!-- 自己图片 第一行 -->
+  <div style="display: flex; justify-content: center; gap: 14px; margin-bottom: 14px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im1_01_original.png" style="width: 150px;">
+      <figcaption>Original</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im1_02_mask.png" style="width: 150px;">
+      <figcaption>Mask</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im1_03_hole_to_fill.png" style="width: 150px;">
+      <figcaption>Hole to Fill</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im1_04_inpainted.png" style="width: 150px;">
+      <figcaption>Inpainted Result</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- 自己图片 第二行 -->
+  <div style="display: flex; justify-content: center; gap: 14px; margin-bottom: 20px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im2_01_original.png" style="width: 150px;">
+      <figcaption>Original</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im2_02_mask.png" style="width: 150px;">
+      <figcaption>Mask</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im2_03_hole_to_fill.png" style="width: 150px;">
+      <figcaption>Hole to Fill</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="im2_04_inpainted.png" style="width: 150px;">
+      <figcaption>Inpainted Result</figcaption>
+    </figure>
+
+  </div>
+</p>
+
           </div>
 
           <div class="section" id="partA-1-7-3">
