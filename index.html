@@ -460,16 +460,16 @@
   <!-- 代码块（居中） -->
   <div style="display: flex; justify-content: center; margin-bottom: 20px;">
 <pre style="
-  background-color: #0f172a;
-  color: #e5e7eb;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
-  font-size: 13px;
-  line-height: 1.4;
-  max-width: 100%;
-">
+      background-color: #ffffff;
+      color: #000000;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 100%;
+    ">
 <code class="language-python">
 def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds,
                           timesteps, scale=7.0, display=True):
@@ -1245,7 +1245,7 @@ def make_flip_illusion(prompt_embeds_1, prompt_embeds_2, uncond_prompt_embeds,
   </div>
 
   <!-- 第一行图片 -->
-  <div style="display: flex; justify-content: center; gap: 32px; margin-bottom: 28px;">
+  <div style="display: flex; justify-content: center; gap: 52px; margin-bottom: 28px;">
     <figure style="text-align: center; margin: 0;">
       <img src="181up.png" style="width: 250px;">
       <figcaption>'a lithograph of waterfalls'</figcaption>
@@ -1275,7 +1275,177 @@ def make_flip_illusion(prompt_embeds_1, prompt_embeds_2, uncond_prompt_embeds,
 
         <div class="section" id="partA-1-9">
           <h3>1.9 Hybrid Images</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+  <!-- 文字说明 -->
+  <div style="margin-bottom: 16px;">
+    I blended two noise estimates predicted by the diffusion model.
+  </div>
+
+  <!-- 小标题 -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
+    make_hybrids function
+  </div>
+
+  <!-- 代码块：白底黑字 -->
+  <div style="display: flex; justify-content: center; margin-bottom: 28px;">
+    <pre style="
+      background-color: #ffffff;
+      color: #000000;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      max-width: 100%;
+    "><code class="language-python">
+def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
+                 uncond_prompt_embeds, timesteps,
+                 low_kernel_size=33, low_sigma=2.0,
+                 scale=7.5, display=False):
+    prompt_embeds_lowfreq = prompt_embeds_lowfreq.to(device).half()
+    prompt_embeds_highfreq = prompt_embeds_highfreq.to(device).half()
+    uncond_prompt_embeds = uncond_prompt_embeds.to(device).half()
+
+    i_start = 0
+    image = torch.randn(1, CHANNELS, 64, 64, device=device).half()
+
+    with torch.no_grad():
+        with autocast(device_type=image.device.type, dtype=torch.float16):
+            n_steps = len(timesteps)
+
+            for i in range(i_start, n_steps - 1):
+                t = _get_timestep_int(timesteps, i)
+                prev_t = _get_timestep_int(timesteps, i + 1)
+                t_tensor_unet = torch.tensor([t], device=device, dtype=torch.float32)
+
+                if isinstance(alphas_cumprod, torch.Tensor):
+                    alpha_bar_t = alphas_cumprod[t].to(device).float()
+                    alpha_bar_prev = alphas_cumprod[prev_t].to(device).float()
+                else:
+                    alpha_bar_t = torch.tensor(float(alphas_cumprod[t]), device=device).float()
+                    alpha_bar_prev = torch.tensor(float(alphas_cumprod[prev_t]), device=device).float()
+
+                if prev_t > 0:
+                    alpha_t = alpha_bar_t / alpha_bar_prev
+                else:
+                    alpha_t = alpha_bar_t
+                beta_t = 1 - alpha_t
+
+                C = image.shape[1]
+                model_output_A = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds_lowfreq,
+                    return_dict=False
+                )[0]
+
+                uncond_output_A = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                if model_output_A.shape[1] == 2 * C:
+                    noise_cond_A, var_cond_A = torch.split(model_output_A, C, dim=1)
+                else:
+                    noise_cond_A = model_output_A
+                    var_cond_A = None
+
+                if uncond_output_A.shape[1] == 2 * C:
+                    noise_uncond_A, _ = torch.split(uncond_output_A, C, dim=1)
+                else:
+                    noise_uncond_A = uncond_output_A
+
+                epsilon_A = noise_uncond_A + float(scale) * (noise_cond_A - noise_uncond_A)
+
+                model_output_B = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds_highfreq,
+                    return_dict=False
+                )[0]
+
+                uncond_output_B = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                if model_output_B.shape[1] == 2 * C:
+                    noise_cond_B, var_cond_B = torch.split(model_output_B, C, dim=1)
+                else:
+                    noise_cond_B = model_output_B
+                    var_cond_B = None
+
+                if uncond_output_B.shape[1] == 2 * C:
+                    noise_uncond_B, _ = torch.split(uncond_output_B, C, dim=1)
+                else:
+                    noise_uncond_B = uncond_output_B
+
+                epsilon_B = noise_uncond_B + float(scale) * (noise_cond_B - noise_uncond_B)
+
+                low_A = TF.gaussian_blur(epsilon_A, kernel_size=low_kernel_size, sigma=float(low_sigma))
+                low_B = TF.gaussian_blur(epsilon_B, kernel_size=low_kernel_size, sigma=float(low_sigma))
+                high_B = epsilon_B - low_B
+                noise_est = low_A + high_B
+
+                predicted_variance = None
+                if var_cond_A is not None and var_cond_B is not None:
+                    predicted_variance = (var_cond_A + var_cond_B) / 2.0
+
+                sqrt_alpha_bar_t = torch.sqrt(alpha_bar_t)
+                sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - alpha_bar_t)
+                x0_hat = (image - sqrt_one_minus_alpha_bar_t * noise_est) / sqrt_alpha_bar_t
+
+                x0_hat = threshold_x0(
+                    x0_hat,
+                    clip_sample=stage_1.scheduler.config.clip_sample,
+                    thresholding=stage_1.scheduler.config.thresholding,
+                    dynamic_thresholding_ratio=stage_1.scheduler.config.dynamic_thresholding_ratio,
+                    sample_max_value=stage_1.scheduler.config.sample_max_value
+                )
+
+                sqrt_alpha_bar_prev = torch.sqrt(alpha_bar_prev)
+                sqrt_alpha_t = torch.sqrt(alpha_t)
+                coeff_x0 = sqrt_alpha_bar_prev * beta_t / (1 - alpha_bar_t)
+                coeff_xt = sqrt_alpha_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
+                pred_prev_mean = coeff_x0 * x0_hat + coeff_xt * image
+
+                if predicted_variance is not None and prev_t > 0:
+                    image = add_variance_safe(predicted_variance, prev_t, pred_prev_mean)
+                else:
+                    image = pred_prev_mean
+
+    return image.detach().cpu()
+</code></pre>
+  </div>
+
+  <!-- 第一张 Hybrid 图 -->
+  <div style="display: flex; justify-content: center; margin-bottom: 28px;">
+    <figure style="text-align: center; margin: 0;">
+      <img src="191.png" style="width: 70%; max-width: 900px;">
+      <figcaption>
+        Low frequency (far): 'a rocket ship'<br>
+        High frequency (close): 'an oil painting of a snowy mountain village'
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- 第二张 Hybrid 图 -->
+  <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+    <figure style="text-align: center; margin: 0;">
+      <img src="192.png" style="width: 70%; max-width: 900px;">
+      <figcaption>
+        Low frequency (far): 'a photo of a dog'<br>
+        High frequency (close): 'a photo of the amalfi coast'
+      </figcaption>
+    </figure>
+  </div>
+</p>
+
         </div>
       </div>
     </div>
