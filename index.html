@@ -725,7 +725,143 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
           
           <div class="section" id="partA-1-7-1">
             <h4>1.7.1 Editing Hand-Drawn and Web Images</h4>
-            <p><!-- 内容留空 --></p>
+            <p>
+  <!-- 文字说明 -->
+  <div style="margin-bottom: 16px;">
+    The goal is to start from sketches or other stylized images and “pull” them onto the natural image manifold using diffusion.
+  </div>
+
+  <!-- 小标题：Web image edit -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
+    Web image edit
+  </div>
+
+  <!-- Web image edits -->
+  <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 18px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w01.png" style="width: 120px;">
+      <figcaption>Dog at i_start=1</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w03.png" style="width: 120px;">
+      <figcaption>Dog at i_start=3</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w05.png" style="width: 120px;">
+      <figcaption>Dog at i_start=5</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w07.png" style="width: 120px;">
+      <figcaption>Dog at i_start=7</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w10.png" style="width: 120px;">
+      <figcaption>Dog at i_start=10</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171w20.png" style="width: 120px;">
+      <figcaption>Dog at i_start=20</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="woriginal.png" style="width: 120px;">
+      <figcaption>original</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- 小标题：Hand-drawn image edits -->
+  <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
+    Hand-drawn image edits
+  </div>
+
+  <!-- Hand-drawn edits 第一排 -->
+  <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 14px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h101.png" style="width: 120px;">
+      <figcaption>Love at i_start=1</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h103.png" style="width: 120px;">
+      <figcaption>Love at i_start=3</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h105.png" style="width: 120px;">
+      <figcaption>Love at i_start=5</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h107.png" style="width: 120px;">
+      <figcaption>Love at i_start=7</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h110.png" style="width: 120px;">
+      <figcaption>Love at i_start=10</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h120.png" style="width: 120px;">
+      <figcaption>Love at i_start=20</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="h1original.png" style="width: 120px;">
+      <figcaption>original</figcaption>
+    </figure>
+
+  </div>
+
+  <!-- Hand-drawn edits 第二排 -->
+  <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h201.png" style="width: 120px;">
+      <figcaption>Flower at i_start=1</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h203.png" style="width: 120px;">
+      <figcaption>Flower at i_start=3</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h205.png" style="width: 120px;">
+      <figcaption>Flower at i_start=5</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h207.png" style="width: 120px;">
+      <figcaption>Flower at i_start=7</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h210.png" style="width: 120px;">
+      <figcaption>Flower at i_start=10</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="171h220.png" style="width: 120px;">
+      <figcaption>Flower at i_start=20</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="h2original.png" style="width: 120px;">
+      <figcaption>original</figcaption>
+    </figure>
+
+  </div>
+</p>
+
           </div>
 
           <div class="section" id="partA-1-7-2">
