@@ -244,7 +244,7 @@
           <h3>1.2 Classical Denoising</h3>
           <p>
   <!-- 第一行：Noisy images -->
-  <div style="display: flex; justify-content: center; gap: 46px; margin-bottom: 15px;">
+  <div style="display: flex; justify-content: center; gap: 56px; margin-bottom: 15px;">
 
     <figure style="text-align: center; margin: 0;">
       <img src="1.1250.png" style="width: 200px;">
@@ -295,7 +295,7 @@
   </div>
 
   <!-- 第一行：Noisy images -->
-  <div style="display: flex; justify-content: center; gap: 80px; margin-bottom: 15px;">
+  <div style="display: flex; justify-content: center; gap: 100px; margin-bottom: 15px;">
 
     <figure style="text-align: center; margin: 0;">
       <img src="1.1250.png" style="width: 200px;">
@@ -446,7 +446,147 @@
 
         <div class="section" id="partA-1-6">
           <h3>1.6 Classifier-Free Guidance (CFG)</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+  <!-- 文字说明 -->
+  <div style="margin-bottom: 14px;">
+    I improved the sample quality using Classifier-Free Guidance (CFG).
+  </div>
+
+  <!-- 白色加粗小标题 -->
+  <div style="font-weight: bold; color: white; font-size: 18px; margin-bottom: 10px; text-align: center;">
+    iterative_denoise_cfg function
+  </div>
+
+  <!-- 代码块（居中） -->
+  <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+<pre style="
+  background-color: #0f172a;
+  color: #e5e7eb;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 100%;
+">
+<code class="language-python">
+def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds,
+                          timesteps, scale=7.0, display=True):
+    image = im_noisy.to(device)
+    prompt_embeds = prompt_embeds.to(device)
+    uncond_prompt_embeds = uncond_prompt_embeds.to(device)
+
+    with torch.no_grad():
+        with autocast(device_type=image.device.type, dtype=torch.float16):
+            n_steps = len(timesteps)
+
+            for i in range(i_start, n_steps - 1):
+                t = _get_timestep_int(timesteps, i)
+                prev_t = _get_timestep_int(timesteps, i + 1)
+
+                t_tensor_unet = torch.tensor([t], device=device, dtype=torch.float32)
+
+                if isinstance(alphas_cumprod, torch.Tensor):
+                    alpha_bar_t = alphas_cumprod[t].to(device).float()
+                    alpha_bar_prev = alphas_cumprod[prev_t].to(device).float()
+                else:
+                    alpha_bar_t = torch.tensor(float(alphas_cumprod[t]), device=device).float()
+                    alpha_bar_prev = torch.tensor(float(alphas_cumprod[prev_t]), device=device).float()
+
+                if prev_t > 0:
+                    alpha_t = alpha_bar_t / alpha_bar_prev
+                else:
+                    alpha_t = alpha_bar_t
+                beta_t = 1 - alpha_t
+
+                cond_model_output = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                uncond_model_output = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=uncond_prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                C = image.shape[1]
+                if cond_model_output.shape[1] == 2 * C:
+                    noise_est_cond, predicted_variance = torch.split(cond_model_output, C, dim=1)
+                else:
+                    noise_est_cond = cond_model_output
+                    predicted_variance = None
+
+                if uncond_model_output.shape[1] == 2 * C:
+                    noise_est_uncond, _ = torch.split(uncond_model_output, C, dim=1)
+                else:
+                    noise_est_uncond = uncond_model_output
+
+                noise_est = noise_est_uncond + float(scale) * (noise_est_cond - noise_est_uncond)
+
+                sqrt_alpha_bar_t = torch.sqrt(alpha_bar_t)
+                sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - alpha_bar_t)
+                x0_hat = (image - sqrt_one_minus_alpha_bar_t * noise_est) / sqrt_alpha_bar_t
+
+                x0_hat = threshold_x0(
+                    x0_hat,
+                    clip_sample=stage_1.scheduler.config.clip_sample,
+                    thresholding=stage_1.scheduler.config.thresholding,
+                    dynamic_thresholding_ratio=stage_1.scheduler.config.dynamic_thresholding_ratio,
+                    sample_max_value=stage_1.scheduler.config.sample_max_value
+                )
+
+                sqrt_alpha_bar_prev = torch.sqrt(alpha_bar_prev)
+                sqrt_alpha_t = torch.sqrt(alpha_t)
+                coeff_x0 = sqrt_alpha_bar_prev * beta_t / (1 - alpha_bar_t)
+                coeff_xt = sqrt_alpha_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
+                pred_prev_mean = coeff_x0 * x0_hat + coeff_xt * image
+
+                if predicted_variance is not None and prev_t > 0:
+                    image = add_variance_safe(predicted_variance, prev_t, pred_prev_mean)
+                else:
+                    image = pred_prev_mean
+
+    return image.detach().cpu()
+</code>
+</pre>
+  </div>
+
+  <!-- CFG 采样结果 -->
+  <div style="display: flex; justify-content: center; gap: 16px; margin-bottom: 15px;">
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="161.png" style="width: 180px;">
+      <figcaption>Sample 1 with CFG</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="162.png" style="width: 180px;">
+      <figcaption>Sample 2 with CFG</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="163.png" style="width: 180px;">
+      <figcaption>Sample 3 with CFG</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="164.png" style="width: 180px;">
+      <figcaption>Sample 4 with CFG</figcaption>
+    </figure>
+
+    <figure style="text-align: center; margin: 0;">
+      <img src="165.png" style="width: 180px;">
+      <figcaption>Sample 5 with CFG</figcaption>
+    </figure>
+
+  </div>
+</p>
+
         </div>
 
         <div class="section" id="partA-1-7">
