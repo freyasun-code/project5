@@ -203,6 +203,16 @@
         <div class="section" id="partA-1-1">
           <h3>1.1 Forward Process</h3>
           <p>
+            <p>
+    In this part, I demonstrate the forward diffusion process. Starting from a clean image,
+    noise is gradually introduced following the predefined schedule used in the DeepFloyd diffusion model.
+    This process produces increasingly noisy versions of the original image at each timestep.
+  </p>
+  <p>
+    Mathematically, the forward diffusion is expressed as:
+    <br>
+    <strong>x<sub>t</sub> = &radic;&alpha;<sub>cumprod, t</sub> &middot; x<sub>0</sub> + &radic;(1 - &alpha;<sub>cumprod, t</sub>) &middot; &epsilon;</strong>
+  </p>
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
     noisy_im = forward(im, t) function
   </div>
