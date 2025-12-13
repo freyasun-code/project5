@@ -1606,7 +1606,8 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
             <p>
   <!-- 文字说明 -->
   <div style="margin-bottom: 16px;">
-    Although the denoiser was trained only at (<em>&sigma; = 0.5</em>), I evaluated it on a broad range of unseen noise levels:
+    At lower noise levels, it tends to remove too much structure, indicating a bias toward its training noise distribution.
+    At higher noise levels, the input becomes severely corrupted and the denoiser fails to recover meaningful content.
   </div>
 
   <!-- 结果图 -->
@@ -1622,8 +1623,14 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
             <p>
   <!-- 文字说明 -->
   <div style="margin-bottom: 16px;">
-    In this subsection, I turned denoising into a purely generative task. 
-    Instead of adding Gaussian noise to real MNIST digits, I:
+    <p>
+   When trained on pure noise inputs, the denoiser
+  produces digit-like outputs that become clearer over time. Because the noise
+  input contains no information about the target image, the model minimizes
+  L2 loss by predicting common MNIST digit patterns, causing it to behave like
+  a mode-collapsed generator.
+</p>
+
   </div>
 
   <!-- Pure noise generation illustration -->
