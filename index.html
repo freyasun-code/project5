@@ -1660,12 +1660,47 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
 
         <div class="section" id="partB-2-1">
           <h3>2.1 Adding Time Conditioning to UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+    To support flow matching, the UNet is augmented with explicit time
+    conditioning so that it can adapt its behavior along the interpolation
+    trajectory.
+  </p>
+
+  <p>
+    A scalar timestep <em>t &in; [0, 1]</em> is embedded using a small
+    fully-connected module (<em>FCBlock</em>) and injected at two locations:
+    after the Flatten–Unflatten bottleneck and near the end of the upsampling
+    path before feature fusion.
+  </p>
+
+  <p>
+    The resulting time embeddings modulate intermediate feature maps through
+    channel-wise scaling, allowing the network to adjust its computation based
+    on the current denoising stage.
+  </p>
         </div>
 
         <div class="section" id="partB-2-2">
           <h3>2.2 Training the UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+    After extending the UNet with time conditioning in Part 2.1, I train it to
+    learn a time-dependent flow field
+    <em>u<sub>&theta;</sub>(x<sub>t</sub>, t)</em>, which transports samples from
+    noise toward clean MNIST digits along an interpolation path.
+  </p>
+
+  <p>
+    Each training step follows Algorithm B.1 from the handout. A clean image and
+    a noise sample are drawn, a random timestep is selected, and an interpolated
+    point is constructed between them. The UNet is then trained to predict the
+    corresponding ground-truth flow vector at that point.
+  </p>
+
+  <p>
+    By minimizing this objective, the model learns how to locally move samples
+    in the direction of cleaner images, which enables multi-step generation
+    during inference.
+  </p>
         </div>
 
         <div class="section" id="partB-2-3">
@@ -1685,7 +1720,44 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
 
         <div class="section" id="partB-2-6">
           <h3>2.6 Sampling from the UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+    I sample MNIST digits from pure noise using a class-conditioned UNet with
+    classifier-free guidance, iteratively refining samples toward the target
+    class. Four samples per digit are generated using checkpoints from 1, 5, and
+    10 training epochs to illustrate convergence.
+  </p>
+
+  <!-- Image: 1 Epoch -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.61.png" style="width: 800px;">
+  </div>
+
+  <!-- Image: 5 Epochs -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.62.png" style="width: 800px;">
+  </div>
+
+  <!-- Image: 10 Epochs -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.63.png" style="width: 800px;">
+  </div>
+
+            <p style="margin-top: 24px;">
+    Removing the learning rate scheduler slows early convergence but has little impact on final sample quality.
+    The results indicate that the scheduler mainly helps stabilize and speed up training,
+    not the expressiveness of the learned model.
+  </p>
+
+  <!-- Without / With Scheduler Comparison -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2661.jpg" style="width: 500px;">
+  </div>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2662.png" style="width: 800px;">
+  </div>
+
+          
         </div>
       </div>
     </div>
