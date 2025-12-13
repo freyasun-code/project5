@@ -1705,17 +1705,50 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
 
         <div class="section" id="partB-2-3">
           <h3>2.3 Sampling from the UNet</h3>
-          <p><!-- 内容留空 --></p>
+            <p>
+    After training the time-conditioned UNet, I generate MNIST-like images by starting from pure noise
+    and iteratively following the learned flow backwards. The timestep decreases linearly from 1 to 0,
+    and although the sampler is simple, it produces recognizable digits as training progresses. To illustrate
+    improvement over training, samples are generated using models trained for 1, 5, and 10 epochs.
+  </p>
+
+  <!-- Image: 1 Epoch -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.31.png" style="width: 800px;">
+  </div>
+
+  <!-- Image: 5 Epochs -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.32.png" style="width: 800px;">
+  </div>
+
+  <!-- Image: 10 Epochs -->
+  <div style="text-align: center; margin-top: 20px;">
+    <img src="2.33.png" style="width: 800px;">
+  </div>
         </div>
 
         <div class="section" id="partB-2-4">
           <h3>2.4 Adding Class-Conditioning to UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <p>To enable class-controlled generation, I extend the time-conditioned UNet to also take a digit label as input. Each class label is encoded as a one-hot vector and provided alongside the timestep, allowing the model to generate samples from specific MNIST classes.
+Time and class inputs are processed by small fully connected networks and used to modulate intermediate UNet features. This lets the model adjust its behavior based on both the denoising stage and the target digit.
+To support classifier-free guidance, the class label is randomly dropped during training, so the network learns both conditional and unconditional behaviors.</p>
         </div>
 
         <div class="section" id="partB-2-5">
           <h3>2.5 Training the UNet</h3>
-          <p><!-- 内容留空 --></p>
+          <p>
+  After augmenting the UNet with both timestep and class conditioning, I train a
+  class-conditional flow-matching model using Algorithm B.3. The training procedure
+  closely mirrors the time-conditioned case, with the key difference that class labels
+  are provided for each sample and randomly dropped with a fixed probability to enable
+  classifier-free guidance.
+</p>
+
+<div style="text-align: center; margin-top: 20px;">
+  <img src="2.5.png" style="width: 500px;">
+</div>
+
         </div>
 
         <div class="section" id="partB-2-6">
