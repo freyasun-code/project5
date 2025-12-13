@@ -164,6 +164,11 @@
         <p>
   <strong>random seed：</strong>100<br>
   <strong>text prompts：</strong> 'a high quality photo', 'a photo of a dog', 'a rocket ship'<br><br>
+          <p>
+Increasing the number of sampling steps (e.g., from 20 to 100) leads to sharper images,
+richer fine-grained details, and better alignment with the given text prompts.
+</p>
+
 
   <div style="display: flex; justify-content: center; gap: 22px; margin-bottom: 15px;">
     <figure style="text-align: center; margin: 0;">
@@ -253,6 +258,11 @@
         <div class="section" id="partA-1-2">
           <h3>1.2 Classical Denoising</h3>
           <p>
+            <p>
+Gaussian blurring suppresses noise but also destroys edges and textures, leaving results
+that are still significantly degraded relative to the clean Campanile.
+</p>
+
   <!-- 第一行：Noisy images -->
   <div style="display: flex; justify-content: center; gap: 56px; margin-bottom: 15px;">
 
@@ -299,6 +309,14 @@
         <div class="section" id="partA-1-3">
           <h3>1.3 One-Step Denoising</h3>
           <p>
+I generated noisy samples at timesteps
+t = 250, 500, and 750 using the forward process. Each noisy image, together with
+its timestep and the “a high quality photo” embedding, was fed into the Stage-1 UNet
+to predict the noise. The predicted noise was then removed to obtain a one-step
+estimate of the original image. For each timestep, I visualize the noisy and the
+corresponding one-step denoised result.
+</p>
+
   <!-- 文字说明（预留，之后可自行填写） -->
   <div style="margin-bottom: 18px;">
     <!-- TODO: Add description for one-step denoising -->
@@ -350,7 +368,84 @@
         <div class="section" id="partA-1-4">
           <h3>1.4 Iterative Denoising</h3>
           <p>
-  <!-- 文字说明（预留，之后可自行填写） -->
+            <p>
+To reduce computation, I used a strided timestep schedule instead of all 1000 DDPM steps.
+Starting from timestep 990 and stepping by 30 down to 0, these timesteps were passed to
+<code>stage_1.scheduler.set_timesteps()</code>. At each step, the predicted clean image,
+noise coefficients, and the provided <code>add_variance</code> function were used to
+compute the next, less noisy image until reaching timestep 0.
+</p>
+  <h3>iterative_denoise Function</h3>
+
+<pre><code>
+strided_timesteps = list(range(990, -1, -30))
+stage_1.scheduler.set_timesteps(timesteps=strided_timesteps)
+
+def iterative_denoise(im_noisy, i_start, prompt_embeds, timesteps, display=True):
+    image = im_noisy.to(device)
+    prompt_embeds = prompt_embeds.to(device)
+
+    with torch.no_grad():
+        with autocast(device_type=image.device.type, dtype=torch.float16):
+            n_steps = len(timesteps)
+
+            for i in range(i_start, n_steps - 1):
+                t = _get_timestep_int(timesteps, i)
+                prev_t = _get_timestep_int(timesteps, i + 1)
+
+                t_tensor_unet = torch.tensor([t], device=device, dtype=torch.float32)
+
+                if isinstance(alphas_cumprod, torch.Tensor):
+                    alpha_bar_t = alphas_cumprod[t].to(device).float()
+                    alpha_bar_prev = alphas_cumprod[prev_t].to(device).float()
+                else:
+                    alpha_bar_t = torch.tensor(float(alphas_cumprod[t]), device=device).float()
+                    alpha_bar_prev = torch.tensor(float(alphas_cumprod[prev_t]), device=device).float()
+
+                alpha_t = alpha_bar_t / alpha_bar_prev if prev_t > 0 else alpha_bar_t
+                beta_t = 1 - alpha_t
+
+                model_output = stage_1.unet(
+                    image,
+                    t_tensor_unet,
+                    encoder_hidden_states=prompt_embeds,
+                    return_dict=False
+                )[0]
+
+                C = image.shape[1]
+                if model_output.shape[1] == 2 * C:
+                    noise_est, predicted_variance = torch.split(model_output, C, dim=1)
+                else:
+                    noise_est = model_output
+                    predicted_variance = None
+
+                sqrt_alpha_bar_t = torch.sqrt(alpha_bar_t)
+                sqrt_one_minus_alpha_bar_t = torch.sqrt(1 - alpha_bar_t)
+                x0_hat = (image - sqrt_one_minus_alpha_bar_t * noise_est) / sqrt_alpha_bar_t
+
+                x0_hat = threshold_x0(
+                    x0_hat,
+                    clip_sample=stage_1.scheduler.config.clip_sample,
+                    thresholding=stage_1.scheduler.config.thresholding,
+                    dynamic_thresholding_ratio=stage_1.scheduler.config.dynamic_thresholding_ratio,
+                    sample_max_value=stage_1.scheduler.config.sample_max_value
+                )
+
+                sqrt_alpha_bar_prev = torch.sqrt(alpha_bar_prev)
+                sqrt_alpha_t = torch.sqrt(alpha_t)
+
+                coeff_x0 = sqrt_alpha_bar_prev * beta_t / (1 - alpha_bar_t)
+                coeff_xt = sqrt_alpha_t * (1 - alpha_bar_prev) / (1 - alpha_bar_t)
+                pred_prev_mean = coeff_x0 * x0_hat + coeff_xt * image
+
+                if predicted_variance is not None and prev_t > 0:
+                    image = add_variance_safe(predicted_variance, prev_t, pred_prev_mean)
+                else:
+                    image = pred_prev_mean
+
+    return image.detach().cpu()
+</code></pre>
+
   <div style="margin-bottom: 18px;">
     <!-- TODO: Add description for iterative denoising -->
   </div>
@@ -416,7 +511,11 @@
         <div class="section" id="partA-1-5">
           <h3>1.5 Diffusion Model Sampling</h3>
           <p>
-  <!-- 文字说明（预留） -->
+  <p>
+Five images generated from pure noise via iterative diffusion sampling
+(prompt: “a high quality photo”).
+</p>
+
   <div style="margin-bottom: 18px;">
     I used the diffusion model
   </div>
@@ -457,7 +556,20 @@
         <div class="section" id="partA-1-6">
           <h3>1.6 Classifier-Free Guidance (CFG)</h3>
           <p>
-  <!-- 文字说明 -->
+  <p>
+I further improved sample quality using Classifier-Free Guidance (CFG). At each denoising
+step, the model predicts both conditional noise and unconditional
+noise (using the empty prompt ""), which are combined using a guidance scale to steer the
+generation.
+</p>
+
+<p>
+I implemented an <code>iterative_denoise_cfg</code> function that extends
+<code>iterative_denoise</code> by computing and blending conditional and unconditional
+noise at every step, then using the guided noise estimate in the update rule. Larger CFG
+scales enforce stronger prompt alignment.
+</p>
+
   <div style="margin-bottom: 14px;">
     I improved the sample quality using Classifier-Free Guidance (CFG).
   </div>
@@ -603,8 +715,17 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
           <h3>1.7 Image-to-Image Translation</h3>
           <!-- 1.7 总体说明 -->
 <p>
-  I use classifier-free guidance (CFG) for all sampling.
+I use diffusion as an image-to-image editing tool by adding noise to a real image and then
+applying CFG-guided iterative denoising to map it back to the natural image manifold.
+Stronger edits correspond to higher starting noise levels.
 </p>
+
+<p>
+This approach follows SDEdit: lightly noised images produce subtle changes, while heavier
+noise leads to larger variations in texture and background, while preserving the overall
+Campanile structure.
+</p>
+
 
 <!-- 第一排：SDEdit on Campanile -->
 <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 18px;">
@@ -736,10 +857,6 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
           <div class="section" id="partA-1-7-1">
             <h4>1.7.1 Editing Hand-Drawn and Web Images</h4>
             <p>
-  <!-- 文字说明 -->
-  <div style="margin-bottom: 16px;">
-    The goal is to start from sketches or other stylized images and “pull” them onto the natural image manifold using diffusion.
-  </div>
 
   <!-- 小标题：Web image edit -->
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
@@ -877,10 +994,19 @@ def iterative_denoise_cfg(im_noisy, i_start, prompt_embeds, uncond_prompt_embeds
           <div class="section" id="partA-1-7-2">
             <h4>1.7.2 Inpainting</h4>
             <p>
-  <!-- 文字说明 -->
-  <div style="margin-bottom: 16px;">
-    I extended the CFG-based diffusion pipeline to perform inpainting, following the RePaint idea.
-  </div>
+  <p>
+In this subsection, I adapt the CFG-based diffusion process for image inpainting.
+    A binary mask is used to constrain generation: unmasked regions are preserved
+from the original image, while masked areas are regenerated by the model.
+</p>
+
+<p>
+At each CFG-guided denoising step, a candidate image is first produced and then corrected
+by reintroducing the appropriately noised original image outside the mask. As a result,
+pixels outside the mask remain consistent with the input, whereas the masked region is
+free to synthesize new content. For my own images, I used the prompts “a flower” and "a bowl of pumpkin soup".
+</p>
+
 
   <!-- 小标题：inpaint function -->
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 10px;">
@@ -1071,10 +1197,20 @@ def inpaint(original_image, mask, prompt_embeds, uncond_prompt_embeds,
           <div class="section" id="partA-1-7-3">
             <h4>1.7.3 Text-Conditional Image-to-image Translation</h4>
             <p>
-  <!-- 文字说明 -->
-  <div style="margin-bottom: 16px;">
-    I extended the SDEdit-style image-to-image translation pipeline by adding text conditioning.
-  </div>
+  <p>
+Here, I incorporate text guidance into the SDEdit-based image-to-image pipeline. By
+replacing the generic prompt with a user-defined description, the diffusion process
+can steer the output toward specific styles or semantic attributes.
+</p>
+
+<p>
+The workflow remains the same: a real image is partially noised, then recovered using
+CFG-guided iterative denoising with the selected prompt embedding. Under stronger
+guidance, the model preserves global structure while introducing prompt-consistent
+visual changes. Smaller noise levels yield subtle edits, whereas larger noise levels
+lead to more pronounced transformations.
+</p>
+
 
   <!-- 小标题 -->
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
@@ -1108,10 +1244,21 @@ def inpaint(original_image, mask, prompt_embeds, uncond_prompt_embeds,
         <div class="section" id="partA-1-8">
           <h3>1.8 Visual Anagrams</h3>
           <p>
-  <!-- 文字说明 -->
-  <div style="margin-bottom: 16px;">
-    In this part, I implemented visual anagrams using diffusion models—images that change semantic meaning when flipped vertically.
-  </div>
+  <p>
+In this section, I generate visual anagrams with diffusion models—single images that
+exhibit different semantics when viewed upright versus upside down. This is achieved
+by steering the sampling process with two distinct text prompts, each corresponding
+to one orientation.
+</p>
+
+<p>
+During each denoising step, noise is predicted once from the original image using the
+upright prompt, and once from the vertically flipped image using the inverted prompt.
+The second prediction is flipped back and combined with the first to form the update.
+This joint guidance enforces consistency with one prompt in the upright view and the
+other in the inverted view.
+</p>
+
 
   <!-- 小标题 -->
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
@@ -1286,10 +1433,19 @@ def make_flip_illusion(prompt_embeds_1, prompt_embeds_2, uncond_prompt_embeds,
         <div class="section" id="partA-1-9">
           <h3>1.9 Hybrid Images</h3>
           <p>
-  <!-- 文字说明 -->
-  <div style="margin-bottom: 16px;">
-    I blended two noise estimates predicted by the diffusion model.
-  </div>
+  <p>
+I apply factorized diffusion to synthesize hybrid images whose
+perceived content changes with viewing scale. Rather than mixing images directly, this
+approach combines frequency-separated noise predictions produced by the diffusion model.
+</p>
+
+<p>
+At each denoising step, two prompt-conditioned noise estimates are generated. One is
+low-pass filtered with a Gaussian kernel, while the other contributes its high-frequency
+components. These are merged into a single noise signal, which is then used for the
+reverse diffusion update. 
+</p>
+
 
   <!-- 小标题 -->
   <div style="font-weight: bold; color: white; font-size: 16px; margin-bottom: 12px;">
@@ -1711,6 +1867,9 @@ def make_hybrids(prompt_embeds_lowfreq, prompt_embeds_highfreq,
     in the direction of cleaner images, which enables multi-step generation
     during inference.
   </p>
+           <div style="text-align: center; margin-top: 20px;">
+    <img src="2.2.png" style="width: 450px;">
+  </div>
         </div>
 
         <div class="section" id="partB-2-3">
@@ -1785,11 +1944,19 @@ To support classifier-free guidance, the class label is randomly dropped during 
     <img src="2.63.png" style="width: 800px;">
   </div>
 
-            <p style="margin-top: 24px;">
-    Removing the learning rate scheduler slows early convergence but has little impact on final sample quality.
-    The results indicate that the scheduler mainly helps stabilize and speed up training,
-    not the expressiveness of the learned model.
-  </p>
+            <p>
+To compensate for removing the learning rate scheduler, I reduced the fixed learning rate,
+introduced a short warmup phase during the first two epochs, and applied gradient clipping.
+These modifications stabilized optimization and preserved both training loss and sample
+quality under a constant learning rate.
+</p>
+
+<p>
+Although removing the scheduler slowed early convergence, it had little impact on the
+final sample quality. This indicates that the scheduler primarily improves training
+stability and convergence speed rather than the expressiveness of the learned model.
+</p>
+
 
   <!-- Without / With Scheduler Comparison -->
   <div style="text-align: center; margin-top: 20px;">
